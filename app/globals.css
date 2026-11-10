@@ -1,0 +1,166 @@
+@import "tailwindcss";
+
+/*
+  StokvelBook's look: a stokvel's savings book, kept carefully.
+  Deep green ink for money in and buttons, warm gold for payouts and things to do,
+  red for late payments and deleting, on warm paper. Dark mode is the same book at night.
+  The token names (marker, amber, teal, alert) are shared with my other apps' components.
+*/
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme {
+  --color-page: #f6f3ec; /* the paper */
+  --color-card: #ffffff; /* panels and forms */
+  --color-ink: #1c2a23; /* text */
+  --color-ink-soft: #4f5d55; /* quieter text (passes AA on page and card) */
+  --color-line: #e2ddd0;
+  --color-marker: #17603f; /* buttons, links, paid */
+  --color-on-marker: #ffffff;
+  --color-marker-soft: #e1f0e6;
+  --color-amber: #8a5300; /* payouts, part paid, things to do (dark enough for small text) */
+  --color-amber-soft: #fbefd6;
+  --color-teal: #1f5f8b; /* due soon, information */
+  --color-teal-soft: #e2edf6;
+  --color-alert: #b42318; /* late, delete, leave */
+  --color-alert-soft: #fde8e6;
+
+  --font-sans: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+}
+
+:root[data-theme="dark"] {
+  --color-page: #0f1713;
+  --color-card: #17221c;
+  --color-ink: #e7efe9;
+  --color-ink-soft: #a6b5ac;
+  --color-line: #2b3a32;
+  --color-marker: #7fd3a6;
+  --color-on-marker: #0f1713;
+  --color-marker-soft: #1c3a2a;
+  --color-amber: #f2c46b;
+  --color-amber-soft: #3a2c12;
+  --color-teal: #8cc4ef;
+  --color-teal-soft: #17304a;
+  --color-alert: #ff9b8f;
+  --color-alert-soft: #3d1c1c;
+  color-scheme: dark;
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  background: var(--color-page);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-marker);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@layer components {
+  /* Round icon buttons */
+  .tool {
+    display: inline-flex;
+    height: 2.5rem;
+    min-width: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    color: var(--color-ink-soft);
+  }
+  .tool:hover {
+    background: var(--color-marker-soft);
+    color: var(--color-marker);
+  }
+  /* Text boxes */
+  .field {
+    width: 100%;
+    border-radius: 0.75rem;
+    border: 1px solid var(--color-line);
+    background: var(--color-card);
+    color: var(--color-ink);
+    padding: 0.7rem 0.9rem;
+    font-size: 16px; /* 16px stops phones zooming in when you tap a box */
+  }
+  .field::placeholder {
+    color: var(--color-ink-soft);
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.75rem;
+    padding: 0.7rem 1.1rem;
+    font-weight: 700;
+    background: var(--color-marker);
+    color: var(--color-on-marker);
+  }
+  .btn:hover {
+    filter: brightness(1.08);
+  }
+  .btn:disabled {
+    opacity: 0.6;
+  }
+  .btn-quiet {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.75rem;
+    padding: 0.6rem 1rem;
+    font-weight: 600;
+    border: 1px solid var(--color-line);
+    background: var(--color-card);
+    color: var(--color-ink);
+  }
+  .btn-quiet:hover {
+    border-color: var(--color-marker);
+    color: var(--color-marker);
+  }
+}
+
+/* New live messages slide up */
+@keyframes rise {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.rise {
+  animation: rise 220ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise {
+    animation: none;
+  }
+}
+
+/* Before Firebase has checked who's signed in, the page has both the loading screen and the
+   sign-in screen; the hint from app/layout.tsx picks which one shows (see lib/auth.ts). */
+html[data-signed-in] .gate-login,
+html:not([data-signed-in]) .gate-splash {
+  display: none;
+}
+
+/* Statements print on plain white, without the app's bars and buttons */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+    color: #000;
+  }
+}

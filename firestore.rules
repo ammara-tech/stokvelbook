@@ -1,0 +1,343 @@
+rules_version = '2';
+
+// StokvelBook's security rules. Paste them into Firebase: Firestore Database → Rules → Publish.
+//
+// The app's code runs on people's phones, so anyone could change it. These rules run on
+// Google's servers and decide what each signed-in person can read and write, whatever the
+// app sends:
+//   - your profile: only you
+//   - a group: only its members can see it
+//   - the money book: only the chairperson and treasurer can add payments, payouts, fines and
+//     corrections, always in their own name and with the time it really is. Nobody can change
+//     or delete an entry, not even the chairperson. Mistakes are cancelled with a correction
+//     that everyone can see.
+//   - the history: members can add a line in their own name; nobody can change or delete it
+//   - settings, members, roles and the payout order: only the chairperson
+//   - your own name and phone number: only you
+//   - meetings: officers write the notes; votes: officers start and close them, and each member
+//     can only set their own vote
+//   - joining: you can add only yourself, as a member, and only with a real invite code
+//   - leaving: you can remove only yourself, and the last chairperson can't leave while others stay
+//   - deleting: only a chairperson, for everyone, after marking the group as being deleted
+//   - invite codes can be looked up one at a time, but never listed
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    function groupDoc(id) {
+      return get(/databases/$(database)/documents/groups/$(id)).data;
+    }
+
+    function isMember(id) {
+      return signedIn() && uid() in groupDoc(id).memberIds;
+    }
+
+    function isChair(id) {
+      return signedIn() && uid() in groupDoc(id).chairIds;
+    }
+
+    function isOfficer(id) {
+      return signedIn() && (uid() in groupDoc(id).chairIds || uid() in groupDoc(id).treasurerIds);
+    }
+
+    // Only these keys may change in an update
+    function onlyChanges(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    function goodText(s, max) {
+      return s is string && s.size() <= max;
+    }
+
+    function goodName(s, max) {
+      return s is string && s.size() > 0 && s.size() <= max;
+    }
+
+    function isMonth(s) {
+      return s is string && s.matches('^[0-9]{4}-(0[1-9]|1[0-2])$');
+    }
+
+    function isDay(s) {
+      return s is string && s.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$');
+    }
+
+    // A time from the person's phone, within 5 minutes of Google's clock
+    function aboutNow(t) {
+      return t is int && t > request.time.toMillis() - 300000 && t < request.time.toMillis() + 300000;
+    }
+
+    function goodMember(m) {
+      return m is map
+        && m.keys().hasOnly(['name', 'phone', 'joinedAt', 'account', 'left'])
+        && goodName(m.name, 30)
+        && goodText(m.phone, 20)
+        && m.joinedAt is int
+        && m.account is bool
+        && m.left is bool;
+    }
+
+    function goodSettings(d) {
+      return goodName(d.name, 40)
+        && d.type in ['rotating', 'savings', 'grocery', 'burial']
+        && d.amount is int && d.amount >= 1000 && d.amount <= 10000000
+        && d.dueDay is int && d.dueDay >= 1 && d.dueDay <= 28
+        && d.fine is int && d.fine >= 0 && d.fine <= 1000000
+        && isMonth(d.startMonth)
+        && isMonth(d.yearEnd)
+        && d.yearEnd >= d.startMonth;
+    }
+
+    // ---------- Your profile ----------
+    match /users/{userId} {
+      allow read, delete: if signedIn() && uid() == userId;
+      allow create, update: if signedIn() && uid() == userId
+        && request.resource.data.keys().hasOnly(['name', 'groups', 'current'])
+        && goodName(request.resource.data.name, 30)
+        && request.resource.data.groups is list
+        && request.resource.data.groups.size() <= 20;
+    }
+
+    // ---------- Invite links ----------
+    match /invites/{code} {
+      // Knowing the code is the invitation: get one by its code, never list them
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn()
+        && code.size() == 12
+        && request.resource.data.keys().hasOnly(['groupId', 'groupName', 'createdBy'])
+        && request.resource.data.createdBy == uid()
+        // getAfter: the group may be created in the same batch
+        && uid() in getAfter(/databases/$(database)/documents/groups/$(request.resource.data.groupId)).data.chairIds;
+      allow update: if isChair(resource.data.groupId)
+        && onlyChanges(['groupName'])
+        && goodName(request.resource.data.groupName, 40);
+      allow delete: if isChair(resource.data.groupId);
+    }
+
+    // ---------- Groups ----------
+    match /groups/{gid} {
+      function members() {
+        return resource.data.memberIds;
+      }
+      function chairs() {
+        return resource.data.chairIds;
+      }
+      function after() {
+        return request.resource.data;
+      }
+      // The accounts removed by this update (empty when nobody leaves)
+      function leaving() {
+        return members().toSet().difference(after().memberIds.toSet());
+      }
+      // Only these people's entries in the members list change
+      function membersChangedOnly(ids) {
+        return after().members.diff(resource.data.members).affectedKeys().hasOnly(ids);
+      }
+
+      allow read: if signedIn() && uid() in members();
+
+      // A new group starts with just you in it, as its chairperson and treasurer
+      allow create: if signedIn()
+        && after().keys().hasOnly(['name', 'type', 'amount', 'dueDay', 'fine', 'startMonth', 'yearEnd', 'createdBy', 'chairIds', 'treasurerIds', 'memberIds', 'members', 'payoutOrder', 'inviteCode', 'createdAt'])
+        && goodSettings(after())
+        && after().createdBy == uid()
+        && after().chairIds == [uid()]
+        && after().treasurerIds == [uid()]
+        && after().memberIds == [uid()]
+        && after().members.keys().size() <= 60
+        && goodMember(after().members[uid()])
+        && after().members[uid()].account == true
+        && after().payoutOrder is list
+        && after().payoutOrder.size() <= 60
+        && after().createdAt is int;
+
+      allow update: if signedIn() && resource.data.get('deleting', false) == false && (
+        // The chairperson changes the settings or makes a new invite link
+        (uid() in chairs()
+          && onlyChanges(['name', 'type', 'amount', 'dueDay', 'fine', 'startMonth', 'yearEnd', 'inviteCode'])
+          && goodSettings(after()))
+        ||
+        // The chairperson adds, changes or removes people added by name (never an account),
+        // and sets the payout order
+        (uid() in chairs()
+          && onlyChanges(['members', 'payoutOrder'])
+          && after().members.diff(resource.data.members).affectedKeys().intersection(members().toSet()).size() == 0
+          && after().members.keys().size() <= 60
+          && after().payoutOrder is list
+          && after().payoutOrder.size() <= 60)
+        ||
+        // The chairperson makes people chairpersons or treasurers; there's always a chairperson
+        (uid() in chairs()
+          && onlyChanges(['chairIds', 'treasurerIds'])
+          && after().chairIds.toSet().difference(members().toSet()).size() == 0
+          && after().treasurerIds.toSet().difference(members().toSet()).size() == 0
+          && after().chairIds.size() > 0
+          && after().chairIds.size() <= 10
+          && after().treasurerIds.size() <= 10)
+        ||
+        // Anyone changes their own name and phone number (and nothing else about themselves)
+        (uid() in members()
+          && onlyChanges(['members'])
+          && membersChangedOnly([uid()])
+          && goodMember(after().members[uid()])
+          && after().members[uid()].account == resource.data.members[uid()].account
+          && after().members[uid()].left == false
+          && after().members[uid()].joinedAt == resource.data.members[uid()].joinedAt)
+        ||
+        // Joining: add only yourself, as a member, at the end of the payout order,
+        // with a real invite code for this group
+        (!(uid() in members())
+          && onlyChanges(['memberIds', 'members', 'payoutOrder', 'lastInvite'])
+          && after().memberIds.toSet().difference(members().toSet()) == [uid()].toSet()
+          && leaving().size() == 0
+          && after().memberIds.size() <= 60
+          && membersChangedOnly([uid()])
+          && goodMember(after().members[uid()])
+          && after().members[uid()].account == true
+          && after().members[uid()].left == false
+          && after().payoutOrder.removeAll([uid()]) == resource.data.payoutOrder.removeAll([uid()])
+          && get(/databases/$(database)/documents/invites/$(after().lastInvite)).data.groupId == gid)
+        ||
+        // Leaving: remove only yourself (you stay in the list, marked as left, so the money book
+        // keeps your name). The group must still have a chairperson if anyone stays.
+        (uid() in members()
+          && onlyChanges(['memberIds', 'members', 'chairIds', 'treasurerIds', 'payoutOrder'])
+          && leaving() == [uid()].toSet()
+          && after().memberIds.toSet().difference(members().toSet()).size() == 0
+          && membersChangedOnly([uid()])
+          && after().members[uid()].left == true
+          && after().members[uid()].name == resource.data.members[uid()].name
+          && !(uid() in after().chairIds)
+          && !(uid() in after().treasurerIds)
+          && after().chairIds.toSet().difference(chairs().toSet()).size() == 0
+          && after().treasurerIds.toSet().difference(resource.data.treasurerIds.toSet()).size() == 0
+          && (after().chairIds.size() > 0 || after().memberIds.size() == 0)
+          && after().payoutOrder == resource.data.payoutOrder.removeAll([uid()]))
+        ||
+        // The chairperson removes one other person with an account (kept in the list as left)
+        (uid() in chairs()
+          && onlyChanges(['memberIds', 'members', 'chairIds', 'treasurerIds', 'payoutOrder'])
+          && leaving().size() == 1
+          && !(uid() in leaving())
+          && after().memberIds.toSet().difference(members().toSet()).size() == 0
+          && after().members.diff(resource.data.members).affectedKeys() == leaving()
+          && after().chairIds.toSet().intersection(leaving()).size() == 0
+          && after().treasurerIds.toSet().intersection(leaving()).size() == 0
+          && after().chairIds.toSet().difference(chairs().toSet()).size() == 0
+          && after().treasurerIds.toSet().difference(resource.data.treasurerIds.toSet()).size() == 0)
+        ||
+        // The chairperson starts deleting the group for everyone
+        (uid() in chairs()
+          && onlyChanges(['deleting'])
+          && after().deleting == true)
+      );
+
+      // Only after it's been marked as being deleted
+      allow delete: if signedIn() && uid() in chairs() && resource.data.get('deleting', false) == true;
+
+      // Lists inside a group can be cleared only while the chairperson is deleting the group
+      function deletingGroup() {
+        return isChair(gid) && groupDoc(gid).get('deleting', false) == true;
+      }
+
+      // ---------- The money book ----------
+      match /entries/{entryId} {
+        function goodEntry(d) {
+          return d.keys().hasOnly(['kind', 'memberId', 'month', 'amount', 'date', 'note', 'by', 'createdAt', 'refId'])
+            && d.kind in ['payment', 'payout', 'fine', 'reversal']
+            && d.memberId is string
+            && d.memberId in groupDoc(gid).members
+            && isMonth(d.month)
+            && d.amount is int && d.amount > 0 && d.amount <= 10000000
+            && isDay(d.date)
+            && goodText(d.note, 140)
+            && d.by == uid()
+            && aboutNow(d.createdAt)
+            && d.refId is string
+            && (
+              (d.kind != 'reversal' && d.refId == '')
+              ||
+              // A correction cancels one real entry (not another correction), for the same member and amount,
+              // and needs a reason (getAfter: in the demo, an entry and its correction are saved together)
+              (d.kind == 'reversal'
+                && d.note.size() > 0
+                && getAfter(/databases/$(database)/documents/groups/$(gid)/entries/$(d.refId)).data.kind != 'reversal'
+                && getAfter(/databases/$(database)/documents/groups/$(gid)/entries/$(d.refId)).data.memberId == d.memberId
+                && getAfter(/databases/$(database)/documents/groups/$(gid)/entries/$(d.refId)).data.amount == d.amount)
+            );
+        }
+
+        allow read: if isMember(gid);
+        allow create: if isOfficer(gid) && goodEntry(request.resource.data);
+        allow update: if false;
+        allow delete: if deletingGroup();
+      }
+
+      // ---------- The history ----------
+      match /log/{logId} {
+        allow read: if isMember(gid);
+        allow create: if isMember(gid)
+          && request.resource.data.keys().hasOnly(['text', 'by', 'at'])
+          && goodName(request.resource.data.text, 200)
+          && request.resource.data.by == uid()
+          && aboutNow(request.resource.data.at);
+        allow update: if false;
+        allow delete: if deletingGroup();
+      }
+
+      // ---------- Meetings ----------
+      match /meetings/{meetingId} {
+        function goodMeeting(d) {
+          return d.keys().hasOnly(['date', 'title', 'notes', 'by', 'createdAt', 'updatedAt'])
+            && isDay(d.date)
+            && goodName(d.title, 80)
+            && goodText(d.notes, 3000)
+            && d.by is string
+            && d.createdAt is int
+            && aboutNow(d.updatedAt);
+        }
+        allow read: if isMember(gid);
+        allow create: if isOfficer(gid) && goodMeeting(request.resource.data) && request.resource.data.by == uid();
+        allow update: if isOfficer(gid) && goodMeeting(request.resource.data)
+          && request.resource.data.by == resource.data.by
+          && request.resource.data.createdAt == resource.data.createdAt;
+        allow delete: if isChair(gid) || deletingGroup();
+      }
+
+      // ---------- Votes ----------
+      match /votes/{voteId} {
+        allow read: if isMember(gid);
+        allow create: if isOfficer(gid)
+          && request.resource.data.keys().hasOnly(['question', 'options', 'ballots', 'by', 'createdAt', 'closed'])
+          && goodName(request.resource.data.question, 140)
+          && request.resource.data.options is list
+          && request.resource.data.options.size() >= 2
+          && request.resource.data.options.size() <= 4
+          && request.resource.data.ballots == {}
+          && request.resource.data.by == uid()
+          && aboutNow(request.resource.data.createdAt)
+          && request.resource.data.closed == false;
+        allow update: if isMember(gid) && resource.data.closed == false && (
+          // You set, change or take back only your own vote
+          (onlyChanges(['ballots'])
+            && request.resource.data.ballots.diff(resource.data.ballots).affectedKeys().hasOnly([uid()])
+            && (!(uid() in request.resource.data.ballots)
+              || (request.resource.data.ballots[uid()] is int
+                && request.resource.data.ballots[uid()] >= 0
+                && request.resource.data.ballots[uid()] < resource.data.options.size())))
+          ||
+          // An officer closes the vote
+          (isOfficer(gid) && onlyChanges(['closed']) && request.resource.data.closed == true)
+        );
+        allow delete: if isChair(gid) || deletingGroup();
+      }
+    }
+  }
+}
