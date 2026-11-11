@@ -9,7 +9,7 @@ import { EntryForm, type EntryStart } from "@/components/EntryForm";
 import { activeMembers, effectiveEntries, entryText, groupTotals, isReversed, memberBalance, monthStatus, nextTurn, paidFor, rotation, yearEndShares } from "@/lib/ledger";
 import { dayName, dueDate, monthName, todayIso } from "@/lib/months";
 import { formatRand, shortRand } from "@/lib/money";
-import { isOfficer, TYPES } from "@/lib/group";
+import { isOfficer } from "@/lib/group";
 import { reminderText, whatsappLink } from "@/lib/reminders";
 import { useApp } from "@/lib/store";
 
@@ -44,7 +44,7 @@ export default function Home() {
       <div className="flex flex-wrap items-end gap-3">
         <div className="mr-auto">
           <p className="text-sm font-bold uppercase tracking-wider text-ink-soft">
-            {TYPES[group.type].label} stokvel · {shortRand(group.amount)} a month
+            This month
           </p>
           <h1 className="mt-1 text-3xl font-extrabold tracking-tight sm:text-4xl">{monthName(month)}</h1>
           <p className="mt-1 text-ink-soft">

@@ -8,9 +8,9 @@ import ThemeToggle from "@/components/ThemeToggle";
 import { authErrorMessage, errorCode, finishRedirectSignIn, resetPassword, signInDemo, signInEmail, signInGoogle, signUpEmail } from "@/lib/auth";
 
 /*
-  The sign-in screen. On a laptop the green side shows three small example cards (this month's
-  contributions, the payout order and the history), so people see what StokvelBook does before
-  they sign up.
+  The sign-in screen: an open passbook. On the left, its green cover with the gold shweshwe-style
+  pattern and a few made-up lines from a stokvel's book; on the right, a cream page with the form.
+  On a phone the cover is a band across the top, and the page is under it.
   Someone who opened an invite link sees a note that they'll join after signing in.
 */
 export default function LoginScreen() {
@@ -28,8 +28,11 @@ export default function LoginScreen() {
   }, []);
 
   const demoBox = (
-    <div className="rounded-xl border border-dashed border-marker/40 bg-marker-soft p-4">
-      <p className="font-bold">Just looking?</p>
+    <div className="rounded-xl border-2 border-dashed border-amber/50 bg-amber-soft p-4">
+      <p className="flex items-center gap-2 font-bold">
+        <span aria-hidden="true" className="flex h-6 w-6 items-center justify-center rounded-full bg-cover text-[11px] font-bold text-gold">Nº</span>
+        Just looking?
+      </p>
       <p className="mt-1 text-sm text-ink-soft">Try StokvelBook as the chairperson of a made-up stokvel, with eight members, four months of payments, a meeting and a vote. No account needed, and everything is deleted when you end the demo.</p>
       <button type="button" disabled={busy} onClick={() => run(signInDemo)} className="btn mt-3 w-full py-2.5">
         Try the demo
@@ -77,180 +80,156 @@ export default function LoginScreen() {
   }
 
   return (
-    <div className="grid min-h-screen lg:grid-cols-2">
-      <aside className="relative hidden overflow-hidden bg-[#123f2b] p-12 text-white lg:flex lg:flex-col">
-        <p className="flex items-center gap-2 text-2xl font-extrabold">
-          <Logo className="h-9 w-9" />
-          StokvelBook
-        </p>
-        <DemoBoard />
-        {/* A big line of text, not the page's heading: on phones this side is hidden, so "Welcome back" is the h1 */}
-        <p className="relative mt-auto max-w-md text-5xl font-extrabold leading-[1.05] tracking-tight">Your stokvel&apos;s book, on everyone&apos;s phone.</p>
-        <p className="relative mt-5 max-w-md text-lg text-white/85">
-          Every member sees who has paid, whose turn is next, and what was decided. Nothing can be quietly changed, so nobody has to wonder.
-        </p>
-      </aside>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_50%_0%,var(--color-card),var(--color-page)_60%)] lg:flex lg:items-center lg:justify-center lg:p-8">
+      <div className="mx-auto w-full overflow-hidden lg:grid lg:max-w-5xl lg:grid-cols-2 lg:rounded-[28px] lg:shadow-[0_50px_100px_-40px_rgba(14,59,40,0.65)] lg:ring-1 lg:ring-black/5">
+        <Cover />
 
-      <main className="flex flex-col px-5 py-6 sm:px-10">
-        <div className="flex items-center justify-between">
-          <p className="flex items-center gap-2 text-xl font-extrabold lg:invisible">
-            <Logo />
-            StokvelBook
-          </p>
-          <ThemeToggle />
-        </div>
+        <main className="ruled relative flex flex-col bg-card px-5 py-6 sm:px-10 lg:px-12">
+          {/* The book's spine, down the middle on a laptop */}
+          <span aria-hidden="true" className="absolute inset-y-0 left-0 hidden w-6 bg-gradient-to-r from-black/10 to-transparent lg:block" />
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber">Member&apos;s page</p>
+            <ThemeToggle />
+          </div>
 
-        <div className="m-auto w-full max-w-sm py-10">
-          {fromDemoLink && <div className="mb-8">{demoBox}</div>}
-          {invited && (
-            <p className="mb-6 rounded-xl border border-marker/40 bg-marker-soft px-4 py-3 text-sm">
-              <strong>You&apos;ve been invited to a stokvel.</strong> Sign in or create an account, and you&apos;ll join it straight after.
-            </p>
-          )}
-          <h1 className="text-3xl font-extrabold tracking-tight">{mode === "signIn" ? "Welcome back" : "Create your account"}</h1>
-          <p className="mt-2 text-ink-soft">{mode === "signIn" ? "Sign in to see your stokvel." : "It's free, and takes a minute."}</p>
-
-          <button type="button" disabled={busy} onClick={() => run(signInGoogle)} className="btn-quiet mt-8 w-full py-3">
-            <Icon name="google" />
-            Continue with Google
-          </button>
-
-          <p className="my-6 flex items-center gap-3 text-sm text-ink-soft before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line">or</p>
-
-          <form onSubmit={submit} className="space-y-4">
-            <label className="block text-sm font-semibold">
-              Email
-              <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className="field mt-1 font-normal" />
-            </label>
-            <div>
-              <label htmlFor="password" className="text-sm font-semibold">
-                Password
-              </label>
-              <div className="relative mt-1">
-                <input
-                  id="password"
-                  type={show ? "text" : "password"}
-                  required
-                  minLength={6}
-                  autoComplete={mode === "signIn" ? "current-password" : "new-password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="field pr-20"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShow((s) => !s)}
-                  aria-pressed={show}
-                  className="absolute inset-y-0 right-2 my-auto h-9 rounded-lg px-3 text-sm font-semibold text-marker hover:bg-marker-soft"
-                >
-                  {show ? "Hide" : "Show"}
-                </button>
-              </div>
-            </div>
-            {error && (
-              <div role="alert" className="text-sm font-semibold text-alert">
-                <p>{error.text}</p>
-                {error.code && <p className="mt-1 text-xs font-normal opacity-70">Error code: {error.code}</p>}
-              </div>
-            )}
-            {notice && (
-              <p role="status" className="text-sm text-marker">
-                {notice}
+          <div className="m-auto w-full max-w-sm py-8">
+            {fromDemoLink && <div className="mb-8">{demoBox}</div>}
+            {invited && (
+              <p className="mb-6 rounded-xl border border-marker/40 bg-marker-soft px-4 py-3 text-sm">
+                <strong>You&apos;ve been invited to a stokvel.</strong> Sign in or create an account, and you&apos;ll join it straight after.
               </p>
             )}
-            <button type="submit" disabled={busy} className="btn w-full py-3">
-              {mode === "signIn" ? "Sign in" : "Create account"}
-            </button>
-          </form>
+            <h1 className="text-4xl">{mode === "signIn" ? "Welcome back" : "Create your account"}</h1>
+            <p className="mt-2 text-ink-soft">{mode === "signIn" ? "Sign in to see your stokvel." : "It's free, and takes a minute."}</p>
 
-          {mode === "signIn" && (
-            <button type="button" onClick={forgot} className="mt-4 text-sm font-semibold text-marker hover:underline">
-              Forgot your password?
+            <button type="button" disabled={busy} onClick={() => run(signInGoogle)} className="btn-quiet mt-8 w-full py-3">
+              <Icon name="google" />
+              Continue with Google
             </button>
-          )}
 
-          <p className="mt-8 text-ink-soft">
-            {mode === "signIn" ? "New to StokvelBook? " : "Already have an account? "}
-            <button
-              type="button"
-              onClick={() => {
-                setMode(mode === "signIn" ? "create" : "signIn");
-                setError(null);
-                setNotice(null);
-              }}
-              className="font-bold text-marker hover:underline"
-            >
-              {mode === "signIn" ? "Create an account" : "Sign in"}
-            </button>
-          </p>
-          {!fromDemoLink && <div className="mt-6">{demoBox}</div>}
-          <p className="mt-6 text-sm text-ink-soft">Only your group&apos;s members can see its book. StokvelBook keeps records only: it never holds or moves money. Everything is stored in Google&apos;s Firebase database.</p>
-        </div>
-      </main>
+            <p className="my-6 flex items-center gap-3 text-sm text-ink-soft before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line">or</p>
+
+            <form onSubmit={submit} className="space-y-4">
+              <label className="block text-sm font-semibold">
+                Email
+                <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className="field mt-1 font-normal" />
+              </label>
+              <div>
+                <label htmlFor="password" className="text-sm font-semibold">
+                  Password
+                </label>
+                <div className="relative mt-1">
+                  <input
+                    id="password"
+                    type={show ? "text" : "password"}
+                    required
+                    minLength={6}
+                    autoComplete={mode === "signIn" ? "current-password" : "new-password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="field pr-20"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShow((s) => !s)}
+                    aria-pressed={show}
+                    className="absolute inset-y-0 right-2 my-auto h-9 rounded-lg px-3 text-sm font-semibold text-marker hover:bg-marker-soft"
+                  >
+                    {show ? "Hide" : "Show"}
+                  </button>
+                </div>
+              </div>
+              {error && (
+                <div role="alert" className="text-sm font-semibold text-alert">
+                  <p>{error.text}</p>
+                  {error.code && <p className="mt-1 text-xs font-normal opacity-70">Error code: {error.code}</p>}
+                </div>
+              )}
+              {notice && (
+                <p role="status" className="text-sm text-marker">
+                  {notice}
+                </p>
+              )}
+              <button type="submit" disabled={busy} className="btn w-full py-3">
+                {mode === "signIn" ? "Sign in" : "Create account"}
+              </button>
+            </form>
+
+            {mode === "signIn" && (
+              <button type="button" onClick={forgot} className="mt-4 text-sm font-semibold text-marker hover:underline">
+                Forgot your password?
+              </button>
+            )}
+
+            <p className="mt-8 text-ink-soft">
+              {mode === "signIn" ? "New to StokvelBook? " : "Already have an account? "}
+              <button
+                type="button"
+                onClick={() => {
+                  setMode(mode === "signIn" ? "create" : "signIn");
+                  setError(null);
+                  setNotice(null);
+                }}
+                className="font-bold text-marker hover:underline"
+              >
+                {mode === "signIn" ? "Create an account" : "Sign in"}
+              </button>
+            </p>
+            {!fromDemoLink && <div className="mt-6">{demoBox}</div>}
+            <p className="mt-6 text-sm text-ink-soft">Only your group&apos;s members can see its book. StokvelBook keeps records only: it never holds or moves money. Everything is stored in Google&apos;s Firebase database.</p>
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
 
 /*
-  Three made-up cards from a stokvel's book, as a preview on the sign-in screen:
-    this month's contributions, with one member late
-    the payout order, with this month's turn
-    the history: a payment and a correction anyone can see
-  They sit in a grid, so none hides another (on narrower laptops the payout card is left out).
-  Decorative only: screen readers skip it.
+  The passbook's cover: the logo stamped in gold, the book's name, and a few made-up lines from a
+  stokvel's book (who paid, a late payment, a payout), so people see what StokvelBook keeps before
+  they sign up. A big line of text, not the page's heading: "Welcome back" on the page is the h1.
+  On a phone it's a shorter band, without the lines. The lines are decorative: screen readers skip them.
 */
-function DemoBoard() {
-  const card = "rounded-2xl bg-white p-4 text-[#1c2a23] shadow-xl";
-  const rows: [string, string, string, string][] = [
-    ["Thandi", "#17603f", "Paid", "bg-[#e1f0e6] text-[#17603f]"],
-    ["Sipho", "#b8473f", "Late", "bg-[#fde8e6] text-[#b42318]"],
-    ["Lerato", "#3d6fa8", "Part paid", "bg-[#fbefd6] text-[#8a5300]"],
-    ["Nomsa", "#7a5aa6", "Paid", "bg-[#e1f0e6] text-[#17603f]"],
+function Cover() {
+  const lines: [string, string, string][] = [
+    ["Thandi", "Nov contribution", "R 500 ✓"],
+    ["Sipho", "Nov contribution", "Late"],
+    ["Nomsa", "Nov contribution", "R 500 ✓"],
+    ["You", "Payout, turn 3", "R 4 000"],
   ];
   return (
-    <div aria-hidden="true" className="relative mt-10 grid gap-6 xl:grid-cols-2">
-      <div className={`${card} w-full max-w-[300px] rotate-[-3deg] justify-self-center xl:justify-self-start`}>
-        <p className="text-xs font-bold uppercase tracking-wider text-[#4f5d55]">November · R 500 each</p>
-        <ul className="mt-3 space-y-2 text-sm">
-          {rows.map(([who, colour, status, style]) => (
-            <li key={who} className="flex items-center gap-2">
-              <span className="h-6 w-6 rounded-full" style={{ background: colour }} />
-              <span className="flex-1 font-semibold">{who}</span>
-              <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${style}`}>{status}</span>
-            </li>
-          ))}
-        </ul>
-        <p className="mt-3 rounded-full bg-[#1c2a23] px-3 py-1.5 text-center text-[11px] font-semibold text-white">Remind Sipho on WhatsApp</p>
-      </div>
+    <aside className="shweshwe-soft relative overflow-hidden px-5 py-6 text-cover-ink sm:px-10 lg:p-10">
+      {/* The gold frame stamped on the cover */}
+      <div className="relative flex h-full flex-col rounded-2xl border border-gold/60 p-5 outline outline-1 outline-offset-4 outline-gold/30 lg:p-8">
+        <p className="flex items-center gap-3">
+          <Logo className="h-10 w-10" />
+          <span>
+            <span className="font-display block text-2xl leading-none text-gold">StokvelBook</span>
+            <span className="mt-1 block text-[11px] font-bold uppercase tracking-[0.3em] text-cover-soft">Savings book</span>
+          </span>
+        </p>
 
-      <div className={`${card} mt-6 hidden w-full max-w-[240px] rotate-[3deg] self-start justify-self-end xl:block`}>
-        <p className="text-xs font-bold uppercase tracking-wider text-[#4f5d55]">Payout order</p>
-        <ol className="mt-3 space-y-2 text-sm">
-          <li className="flex justify-between">
-            <span>1. Thandi</span>
-            <span className="font-bold text-[#17603f]">Paid ✓</span>
-          </li>
-          <li className="flex justify-between">
-            <span>2. Sipho</span>
-            <span className="font-bold text-[#17603f]">Paid ✓</span>
-          </li>
-          <li className="flex justify-between rounded-lg bg-[#fbefd6] px-2 py-1 font-bold">
-            <span>3. You</span>
-            <span className="text-[#8a5300]">R 4 000</span>
-          </li>
-          <li className="flex justify-between text-[#4f5d55]">
-            <span>4. Lerato</span>
-            <span>Dec</span>
-          </li>
-        </ol>
-      </div>
+        <p className="font-display mt-6 text-3xl leading-tight lg:mt-12 lg:text-5xl">Your stokvel&apos;s book, on everyone&apos;s phone.</p>
+        <p className="mt-3 max-w-md text-cover-soft lg:mt-5 lg:text-lg">
+          Every member sees who has paid, whose turn is next, and what was decided. Nothing can be quietly changed, so nobody has to wonder.
+        </p>
 
-      <div className={`${card} w-full max-w-[280px] rotate-[-1.5deg] justify-self-center xl:col-span-2`}>
-        <p className="text-xs font-bold uppercase tracking-wider text-[#4f5d55]">History · nobody can edit it</p>
-        <p className="mt-2 text-sm font-semibold">R 500 from Nomsa for November</p>
-        <p className="mt-1 text-sm font-semibold text-[#4f5d55] line-through">R 500 from Nomsa for November</p>
-        <p className="text-xs font-semibold text-[#b42318]">Cancelled by the treasurer: recorded twice</p>
+        <div aria-hidden="true" className="mt-auto hidden pt-10 lg:block">
+          <p className="flex justify-between border-b border-gold/50 pb-1 text-[11px] font-bold uppercase tracking-[0.2em] text-gold">
+            <span>Member</span>
+            <span>Amount</span>
+          </p>
+          <ul className="text-sm">
+            {lines.map(([who, what, amount]) => (
+              <li key={who} className="flex items-baseline gap-3 border-b border-dashed border-gold/25 py-2">
+                <span className="w-16 font-bold">{who}</span>
+                <span className="flex-1 text-cover-soft">{what}</span>
+                <span className={`font-bold tabular-nums ${amount === "Late" ? "rounded-full bg-[#fde8e6] px-2 text-xs text-[#b42318]" : "text-gold"}`}>{amount}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
-    </div>
+    </aside>
   );
 }

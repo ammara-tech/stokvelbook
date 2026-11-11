@@ -71,7 +71,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       )}
       {app.group && <Header />}
-      <main id="main" className="mx-auto max-w-5xl px-4 pb-28 pt-6">
+      <main id="main" className="mx-auto max-w-5xl px-4 pb-32 pt-6 sm:pb-28">
         {!app.online && (
           <p className="no-print mb-4 flex items-start gap-2 rounded-xl border border-line bg-card px-4 py-3 text-sm">
             <Icon name="cloudOff" className="mt-0.5 h-4 w-4 shrink-0 text-alert" />

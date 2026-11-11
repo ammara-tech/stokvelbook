@@ -61,10 +61,20 @@ the book where every member can see it, and makes it impossible to change an ent
   mode, and works on a phone and a laptop.
 
 ## Design
-A stokvel's savings book, kept carefully: warm paper, deep green ink for money in and buttons, gold for payouts,
-and red for late payments and deleting. The statuses have their own colours (Paid green, Part paid gold, Late red,
-Due blue), and each also has a word or symbol, so colour is never the only clue. Text colours pass WCAG AA contrast
-in both themes.
+A savings passbook: a deep green cover with a gold pattern inspired by shweshwe (the printed cotton loved across
+South Africa, here in the stokvel's green and gold), and cream passbook pages inside. Headings are in DM Serif
+Display, like the printing on a bank book, and everything else is in Figtree. Each of my apps has its own look;
+this is StokvelBook's.
+
+- **Signing in:** an open passbook. The cover is on the left, with a few made-up lines from a stokvel's book; the
+  form is on a ruled cream page on the right. On a phone the cover is a band across the top.
+- **Inside:** the group's card at the top of every page, on the green cover, with its name, the kind of stokvel,
+  the monthly amount and how many members it has. On a laptop the pages are tabs under it; on a phone they're a bar
+  along the bottom of the screen, like a banking app.
+
+Deep green is for money in and buttons, gold for payouts, and red for late payments and deleting. The statuses have
+their own colours (Paid green, Part paid gold, Late red, Due blue), and each also has a word or symbol, so colour is
+never the only clue. Text colours pass WCAG AA contrast in both themes.
 
 ## Tech stack
 Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, Firebase Authentication and Cloud Firestore,

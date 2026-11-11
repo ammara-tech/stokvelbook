@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Figtree } from "next/font/google";
+import { DM_Serif_Display, Figtree } from "next/font/google";
 import AppShell from "@/components/AppShell";
 import RegisterServiceWorker from "@/components/RegisterServiceWorker";
 import "./globals.css";
 
 const figtree = Figtree({ subsets: ["latin"], variable: "--font-figtree", display: "swap" });
+// For headings: like the printing on a bank book
+const serif = DM_Serif_Display({ subsets: ["latin"], weight: "400", variable: "--font-serif-display", display: "swap" });
 
 export const metadata: Metadata = {
   title: "StokvelBook — your stokvel's book, on everyone's phone",
@@ -15,8 +17,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f6f3ec" },
-    { media: "(prefers-color-scheme: dark)", color: "#0f1713" },
+    { media: "(prefers-color-scheme: light)", color: "#f5efe0" },
+    { media: "(prefers-color-scheme: dark)", color: "#0c1510" },
   ],
 };
 
@@ -25,7 +27,7 @@ const themeScript = `try{var t=localStorage.getItem("stokvelbook:theme");if(t!==
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en-ZA" className={figtree.variable} suppressHydrationWarning>
+    <html lang="en-ZA" className={`${figtree.variable} ${serif.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
